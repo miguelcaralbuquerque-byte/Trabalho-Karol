@@ -1,87 +1,18 @@
 const WHATSAPP_NUMBER = '5511975197754';
 const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+let products = [];
 
-const products = [
-    {
-        id: 'blusa-linho',
-        name: 'Blusa leve de linho',
-        category: 'Blusas',
-        price: 11990,
-        tag: 'Mais querida',
-        image: 'https://images.unsplash.com/photo-1551163943-3f6a855d1153?auto=format&fit=crop&w=800&q=82',
-        alt: 'Blusa feminina em tecido leve'
-    },
-    {
-        id: 'vestido-midi',
-        name: 'Vestido midi fluido',
-        category: 'Vestidos',
-        price: 18990,
-        tag: 'Novidade',
-        image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=800&q=82',
-        alt: 'Vestido midi feminino'
-    },
-    {
-        id: 'conjunto-alfaiataria',
-        name: 'Conjunto de alfaiataria',
-        category: 'Conjuntos',
-        price: 24990,
-        tag: 'Versátil',
-        image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=800&q=82',
-        alt: 'Look feminino de alfaiataria'
-    },
-    {
-        id: 'calca-reta',
-        name: 'Calça reta essencial',
-        category: 'Calças',
-        price: 15990,
-        tag: 'Clássico',
-        image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=800&q=82',
-        alt: 'Calça feminina de corte reto'
-    },
-    {
-        id: 'blusa-tricot',
-        name: 'Blusa de tricô macio',
-        category: 'Blusas',
-        price: 13990,
-        tag: 'Conforto',
-        image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=800&q=82',
-        alt: 'Blusa feminina de tricô'
-    },
-    {
-        id: 'vestido-casual',
-        name: 'Vestido casual estampado',
-        category: 'Vestidos',
-        price: 17990,
-        tag: 'Leveza',
-        image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&w=800&q=82',
-        alt: 'Vestido estampado para o dia a dia'
-    },
-    {
-        id: 'conjunto-casual',
-        name: 'Conjunto casual comfy',
-        category: 'Conjuntos',
-        price: 21990,
-        tag: 'Prático',
-        image: 'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=800&q=82',
-        alt: 'Conjunto feminino casual'
-    },
-    {
-        id: 'calca-pantalona',
-        name: 'Calça pantalona fluida',
-        category: 'Calças',
-        price: 16990,
-        tag: 'Favorita',
-        image: 'https://images.unsplash.com/photo-1551854838-212c50b4c184?auto=format&fit=crop&w=800&q=82',
-        alt: 'Calça pantalona feminina'
-    }
-];
-
+const config = window.SUPABASE_CONFIG || {};
+const supabaseClient = window.supabase && config.url && config.anonKey
+    ? window.supabase.createClient(config.url, config.anonKey)
+    : null;
 const menuToggle = document.getElementById('menuToggle');
 const navLinks = document.getElementById('navLinks');
 const searchInput = document.getElementById('productSearch');
 const productGrid = document.getElementById('productGrid');
 const emptyState = document.getElementById('emptyState');
 const resultCount = document.getElementById('resultCount');
+const catalogStatus = document.getElementById('catalogStatus');
 const filterButtons = [...document.querySelectorAll('.filter-chip')];
 const cartButton = document.getElementById('openCart');
 const cartDrawer = document.getElementById('cartDrawer');
@@ -92,21 +23,93 @@ const cartEmpty = document.getElementById('cartEmpty');
 const cartSummary = document.getElementById('cartSummary');
 const cartTotal = document.getElementById('cartTotal');
 const checkoutButton = document.getElementById('checkoutButton');
+const checkoutStatus = document.getElementById('checkoutStatus');
+const inventoryPanel = document.getElementById('inventoryPanel');
+const inventoryBackdrop = document.getElementById('inventoryBackdrop');
+const inventoryStatus = document.getElementById('inventoryStatus');
+const inventoryLogin = document.getElementById('inventoryLogin');
+const inventoryDashboard = document.getElementById('inventoryDashboard');
+const inventoryList = document.getElementById('inventoryList');
+const pendingOrders = document.getElementById('pendingOrders');
+const productForm = document.getElementById('productForm');
+const variantForm = document.getElementById('variantForm');
 const cart = new Map();
+let variants = [];
 let activeCategory = 'Todos';
 let lastFocusedElement = null;
+
+function showStatus(element, message, isError = false) {
+    element.textContent = message;
+    element.classList.toggle('is-error', isError);
+}
+
+function formatVariant(variant) {
+    return [variant.color, variant.size, variant.sku].filter(Boolean).join(' · ');
+}
+
+function getProduct(productId) {
+    return products.find(product => product.id === productId);
+}
+
+function getVariant(variantId) {
+    return variants.find(variant => variant.id === variantId);
+}
+
+async function loadVariants() {
+    if (!supabaseClient) {
+        showStatus(catalogStatus, 'O estoque compartilhado ainda não foi configurado. Configure o Supabase para liberar os pedidos.', true);
+        renderProducts();
+        return;
+    }
+
+    const [productResult, variantResult] = await Promise.all([
+        supabaseClient
+            .from('products')
+            .select('id, name, price_cents, category, image_url, alt_text, tag, active')
+            .eq('active', true)
+            .order('sort_order')
+            .order('name'),
+        supabaseClient
+            .from('inventory_variants')
+            .select('id, product_id, size, color, quantity')
+            .order('product_id')
+            .order('color')
+            .order('size')
+    ]);
+
+    if (productResult.error || variantResult.error) {
+        const error = productResult.error || variantResult.error;
+        showStatus(catalogStatus, `Não foi possível carregar a loja: ${error.message}`, true);
+        return;
+    }
+
+    products = productResult.data.map(product => ({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        price: product.price_cents,
+        tag: product.tag || 'Novidade',
+        image: product.image_url || '',
+        alt: product.alt_text || product.name
+    }));
+    variants = variantResult.data;
+    showStatus(catalogStatus, '');
+    renderProducts();
+    renderCart();
+}
 
 function createProductCard(product) {
     const card = document.createElement('article');
     card.className = 'product-card';
+    const productVariants = variants.filter(variant => variant.product_id === product.id && variant.quantity > 0);
 
     const imageWrap = document.createElement('div');
     imageWrap.className = 'product-image-wrap';
-
     const image = document.createElement('img');
     image.className = 'product-image';
     image.src = product.image;
     image.alt = product.alt;
+    if (!product.image) image.hidden = true;
     image.loading = 'lazy';
     image.addEventListener('error', () => {
         image.hidden = true;
@@ -119,14 +122,35 @@ function createProductCard(product) {
     const tag = document.createElement('span');
     tag.className = 'product-tag';
     tag.textContent = product.tag;
-
     const addButton = document.createElement('button');
     addButton.className = 'product-add';
     addButton.type = 'button';
     addButton.textContent = '+';
-    addButton.setAttribute('aria-label', `Adicionar ${product.name} à sacola`);
-    addButton.addEventListener('click', () => addToCart(product.id));
+    addButton.disabled = productVariants.length === 0;
+    addButton.setAttribute('aria-label', productVariants.length
+        ? `Adicionar ${product.name} à sacola`
+        : `${product.name} indisponível`);
 
+    const variantSelect = document.createElement('select');
+    variantSelect.className = 'product-variant';
+    variantSelect.setAttribute('aria-label', `Cor e tamanho de ${product.name}`);
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = productVariants.length ? 'Selecione cor e tamanho' : 'Indisponível';
+    variantSelect.append(placeholder);
+    for (const variant of productVariants) {
+        const option = document.createElement('option');
+        option.value = variant.id;
+        option.textContent = formatVariant(variant);
+        variantSelect.append(option);
+    }
+    addButton.addEventListener('click', () => {
+        if (!variantSelect.value) {
+            variantSelect.focus();
+            return;
+        }
+        addToCart(variantSelect.value);
+    });
     imageWrap.append(image, tag, addButton);
 
     const meta = document.createElement('div');
@@ -139,12 +163,11 @@ function createProductCard(product) {
     name.className = 'product-name';
     name.textContent = product.name;
     details.append(category, name);
-
     const price = document.createElement('span');
     price.className = 'product-price';
     price.textContent = formatter.format(product.price / 100);
     meta.append(details, price);
-    card.append(imageWrap, meta);
+    card.append(imageWrap, meta, variantSelect);
     return card;
 }
 
@@ -161,19 +184,32 @@ function renderProducts() {
     emptyState.hidden = visibleProducts.length !== 0;
 }
 
-function addToCart(productId) {
-    cart.set(productId, (cart.get(productId) || 0) + 1);
+function addToCart(variantId) {
+    const variant = getVariant(variantId);
+    const nextQuantity = (cart.get(variantId) || 0) + 1;
+    if (!variant || nextQuantity > variant.quantity) {
+        showStatus(checkoutStatus, 'A quantidade selecionada não está mais disponível. Atualize o estoque e tente novamente.', true);
+        loadVariants();
+        return;
+    }
+    cart.set(variantId, nextQuantity);
     renderCart();
     openCart();
 }
 
-function updateQuantity(productId, change) {
-    const nextQuantity = (cart.get(productId) || 0) + change;
+function updateQuantity(variantId, change) {
+    const nextQuantity = (cart.get(variantId) || 0) + change;
     if (nextQuantity <= 0) {
-        cart.delete(productId);
+        cart.delete(variantId);
     } else {
-        cart.set(productId, nextQuantity);
+        const variant = getVariant(variantId);
+        if (!variant || nextQuantity > variant.quantity) {
+            showStatus(checkoutStatus, 'Não há unidades suficientes para aumentar este item.', true);
+            return;
+        }
+        cart.set(variantId, nextQuantity);
     }
+    showStatus(checkoutStatus, '');
     renderCart();
 }
 
@@ -182,28 +218,29 @@ function renderCart() {
     let total = 0;
     const items = [];
 
-    for (const [productId, quantity] of cart) {
-        const product = products.find(item => item.id === productId);
+    for (const [variantId, quantity] of cart) {
+        const variant = getVariant(variantId);
+        const product = variant && getProduct(variant.product_id);
         if (!product) {
             continue;
         }
         itemCount += quantity;
         total += product.price * quantity;
-        items.push({ product, quantity });
+        items.push({ product, variant, quantity });
     }
 
     cartCount.textContent = String(itemCount);
     cartButton.setAttribute('aria-label', `Abrir sacola, ${itemCount} ${itemCount === 1 ? 'item' : 'itens'}`);
     cartEmpty.hidden = itemCount !== 0;
     cartSummary.hidden = itemCount === 0;
+    checkoutButton.disabled = itemCount === 0 || !supabaseClient;
     cartItems.replaceChildren(...items.map(createCartItem));
     cartTotal.textContent = formatter.format(total / 100);
 }
 
-function createCartItem({ product, quantity }) {
+function createCartItem({ product, variant, quantity }) {
     const row = document.createElement('div');
     row.className = 'cart-item';
-
     const image = document.createElement('img');
     image.src = product.image;
     image.alt = '';
@@ -216,22 +253,22 @@ function createCartItem({ product, quantity }) {
     name.textContent = product.name;
     const price = document.createElement('p');
     price.className = 'cart-item-price';
-    price.textContent = formatter.format(product.price / 100);
-
+    price.textContent = `${formatVariant(variant)} · ${formatter.format(product.price / 100)}`;
     const controls = document.createElement('div');
     controls.className = 'quantity-controls';
     const decrease = document.createElement('button');
     decrease.type = 'button';
     decrease.textContent = '−';
     decrease.setAttribute('aria-label', `Diminuir quantidade de ${product.name}`);
-    decrease.addEventListener('click', () => updateQuantity(product.id, -1));
+    decrease.addEventListener('click', () => updateQuantity(variant.id, -1));
     const quantityLabel = document.createElement('span');
     quantityLabel.textContent = String(quantity);
     const increase = document.createElement('button');
     increase.type = 'button';
     increase.textContent = '+';
+    increase.disabled = quantity >= variant.quantity;
     increase.setAttribute('aria-label', `Aumentar quantidade de ${product.name}`);
-    increase.addEventListener('click', () => updateQuantity(product.id, 1));
+    increase.addEventListener('click', () => updateQuantity(variant.id, 1));
     controls.append(decrease, quantityLabel, increase);
     details.append(name, price, controls);
 
@@ -241,7 +278,7 @@ function createCartItem({ product, quantity }) {
     remove.textContent = '×';
     remove.setAttribute('aria-label', `Remover ${product.name} da sacola`);
     remove.addEventListener('click', () => {
-        cart.delete(product.id);
+        cart.delete(variant.id);
         renderCart();
     });
     row.append(image, details, remove);
@@ -268,30 +305,267 @@ function closeCart() {
     }
 }
 
-function checkout() {
-    const orderLines = [...cart].map(([productId, quantity]) => {
-        const product = products.find(item => item.id === productId);
-        return product ? `• ${quantity}x ${product.name} — ${formatter.format(product.price * quantity / 100)}` : '';
-    }).filter(Boolean);
-
-    if (orderLines.length === 0) {
+async function checkout() {
+    if (!supabaseClient || cart.size === 0) {
         return;
     }
 
-    const total = [...cart].reduce((sum, [productId, quantity]) => {
-        const product = products.find(item => item.id === productId);
+    const whatsappWindow = window.open('about:blank', '_blank');
+    if (!whatsappWindow) {
+        showStatus(checkoutStatus, 'Permita a abertura de janelas para enviar o pedido pelo WhatsApp.', true);
+        return;
+    }
+
+    checkoutButton.disabled = true;
+    showStatus(checkoutStatus, 'Registrando pedido...');
+    const items = [...cart].map(([variantId, quantity]) => ({ variant_id: variantId, quantity }));
+    const { data: orderId, error } = await supabaseClient.rpc('create_order', { p_items: items });
+
+    if (error) {
+        whatsappWindow.close();
+        checkoutButton.disabled = false;
+        showStatus(checkoutStatus, `Não foi possível registrar o pedido: ${error.message}`, true);
+        await loadVariants();
+        return;
+    }
+
+    const orderLines = [...cart].map(([variantId, quantity]) => {
+        const variant = getVariant(variantId);
+        const product = variant && getProduct(variant.product_id);
+        return product ? `• ${quantity}x ${product.name} (${formatVariant(variant)}) — ${formatter.format(product.price * quantity / 100)}` : '';
+    }).filter(Boolean);
+    const total = [...cart].reduce((sum, [variantId, quantity]) => {
+        const variant = getVariant(variantId);
+        const product = variant && getProduct(variant.product_id);
         return sum + (product ? product.price * quantity : 0);
     }, 0);
     const message = [
-        'Olá, Dona Kah! Gostaria de consultar este pedido (catálogo demonstrativo):',
+        `Olá, Dona Kah! Gostaria de confirmar este pedido. Número: ${orderId}`,
         '',
         ...orderLines,
         '',
-        `Total de exemplo: ${formatter.format(total / 100)}`,
-        'Pode confirmar disponibilidade, valores e formas de pagamento?'
+        `Total: ${formatter.format(total / 100)}`,
+        'Aguardo a confirmação do pedido e do pagamento.'
     ].join('\n');
 
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    whatsappWindow.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    cart.clear();
+    renderCart();
+    showStatus(checkoutStatus, `Pedido ${orderId} registrado.`);
+}
+
+function openInventory() {
+    lastFocusedElement = document.activeElement;
+    inventoryPanel.hidden = false;
+    inventoryBackdrop.hidden = false;
+    document.body.classList.add('cart-open');
+    document.getElementById('closeInventory').focus();
+    checkInventorySession();
+}
+
+function closeInventory() {
+    if (inventoryPanel.hidden) {
+        return;
+    }
+    inventoryPanel.hidden = true;
+    inventoryBackdrop.hidden = true;
+    document.body.classList.remove('cart-open');
+    if (lastFocusedElement instanceof HTMLElement) {
+        lastFocusedElement.focus();
+    }
+}
+
+async function checkInventorySession() {
+    if (!supabaseClient) {
+        showStatus(inventoryStatus, 'Configure a URL e a chave pública do Supabase em supabase-config.js.', true);
+        inventoryLogin.hidden = true;
+        inventoryDashboard.hidden = true;
+        return;
+    }
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível verificar a sessão: ${error.message}`, true);
+        return;
+    }
+    if (session) {
+        await showInventoryDashboard(session.user);
+    } else {
+        inventoryLogin.hidden = false;
+        inventoryDashboard.hidden = true;
+        showStatus(inventoryStatus, '');
+    }
+}
+
+async function showInventoryDashboard(user) {
+    const { data: isAdmin, error } = await supabaseClient.rpc('is_inventory_admin');
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível verificar a permissão: ${error.message}`, true);
+        return;
+    }
+    if (!isAdmin) {
+        await supabaseClient.auth.signOut();
+        showStatus(inventoryStatus, 'Este usuário não tem permissão para administrar o estoque.', true);
+        return;
+    }
+
+    inventoryLogin.hidden = true;
+    inventoryDashboard.hidden = false;
+    document.getElementById('inventoryUser').textContent = user.email;
+    const productSelect = document.getElementById('variantProduct');
+    productSelect.replaceChildren(...products.map(product => {
+        const option = document.createElement('option');
+        option.value = product.id;
+        option.textContent = product.name;
+        return option;
+    }));
+    showStatus(inventoryStatus, '');
+    await refreshInventoryDashboard();
+}
+
+async function refreshInventoryDashboard() {
+    await loadVariants();
+    const [variantResult, orderResult] = await Promise.all([
+        supabaseClient.from('inventory_variants')
+            .select('id, product_id, size, color, sku, quantity')
+            .order('product_id').order('color').order('size'),
+        supabaseClient.from('orders')
+            .select('id, created_at, order_items(product_name, variant_label, quantity, unit_price_cents)')
+            .eq('status', 'pending').order('created_at')
+    ]);
+
+    if (variantResult.error || orderResult.error) {
+        const error = variantResult.error || orderResult.error;
+        showStatus(inventoryStatus, `Não foi possível atualizar o painel: ${error.message}`, true);
+        return;
+    }
+
+    variants = variantResult.data;
+    renderInventoryList();
+    renderPendingOrders(orderResult.data);
+    renderProducts();
+    renderCart();
+}
+
+function renderInventoryList() {
+    if (variants.length === 0) {
+        inventoryList.textContent = 'Ainda não há variações cadastradas.';
+        return;
+    }
+
+    inventoryList.replaceChildren(...variants.map(variant => {
+        const row = document.createElement('form');
+        row.className = 'inventory-row';
+        const label = document.createElement('div');
+        label.className = 'inventory-row-label';
+        const product = getProduct(variant.product_id);
+        const name = document.createElement('strong');
+        name.textContent = product ? product.name : variant.product_id;
+        const detail = document.createElement('span');
+        detail.textContent = [variant.color, variant.size, variant.sku].filter(Boolean).join(' · ');
+        label.append(name, detail);
+
+        const quantity = document.createElement('input');
+        quantity.type = 'number';
+        quantity.min = '0';
+        quantity.step = '1';
+        quantity.value = String(variant.quantity);
+        quantity.setAttribute('aria-label', `Unidades de ${product ? product.name : variant.product_id}, ${formatVariant(variant)}`);
+        const save = document.createElement('button');
+        save.className = 'small-button';
+        save.type = 'submit';
+        save.textContent = 'Salvar';
+        row.addEventListener('submit', event => {
+            event.preventDefault();
+            saveInventoryQuantity(variant.id, quantity, save);
+        });
+        row.append(label, quantity, save);
+        return row;
+    }));
+}
+
+async function saveInventoryQuantity(variantId, input, button) {
+    const quantity = Number(input.value);
+    if (!Number.isSafeInteger(quantity) || quantity < 0) {
+        showStatus(inventoryStatus, 'Informe uma quantidade inteira igual ou maior que zero.', true);
+        return;
+    }
+    button.disabled = true;
+    const { error } = await supabaseClient
+        .from('inventory_variants')
+        .update({ quantity, updated_at: new Date().toISOString() })
+        .eq('id', variantId);
+    button.disabled = false;
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível salvar o estoque: ${error.message}`, true);
+        return;
+    }
+    showStatus(inventoryStatus, 'Estoque atualizado.');
+    await refreshInventoryDashboard();
+}
+
+function renderPendingOrders(orders) {
+    if (orders.length === 0) {
+        pendingOrders.textContent = 'Nenhum pedido aguardando confirmação.';
+        return;
+    }
+
+    pendingOrders.replaceChildren(...orders.map(order => {
+        const card = document.createElement('article');
+        card.className = 'pending-order';
+        const heading = document.createElement('strong');
+        heading.textContent = `Pedido ${order.id}`;
+        const date = document.createElement('time');
+        date.dateTime = order.created_at;
+        date.textContent = new Date(order.created_at).toLocaleString('pt-BR');
+        const list = document.createElement('ul');
+        for (const item of order.order_items) {
+            const line = document.createElement('li');
+            line.textContent = `${item.quantity}x ${item.product_name} (${item.variant_label})`;
+            list.append(line);
+        }
+        const confirm = document.createElement('button');
+        confirm.className = 'small-button';
+        confirm.type = 'button';
+        confirm.textContent = 'Confirmar pedido';
+        confirm.addEventListener('click', () => confirmOrder(order.id, confirm));
+        const cancel = document.createElement('button');
+        cancel.className = 'small-button';
+        cancel.type = 'button';
+        cancel.textContent = 'Cancelar pedido';
+        cancel.addEventListener('click', () => cancelOrder(order.id, cancel));
+        card.append(heading, date, list, confirm, cancel);
+        return card;
+    }));
+}
+
+async function confirmOrder(orderId, button) {
+    if (!window.confirm('Confirmar este pedido?')) {
+        return;
+    }
+    button.disabled = true;
+    const { error } = await supabaseClient.rpc('confirm_order', { p_order_id: orderId });
+    button.disabled = false;
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível confirmar a venda: ${error.message}`, true);
+        return;
+    }
+    showStatus(inventoryStatus, 'Pedido confirmado.');
+    await refreshInventoryDashboard();
+}
+
+async function cancelOrder(orderId, button) {
+    if (!window.confirm('Cancelar este pedido e devolver as peças selecionadas?')) {
+        return;
+    }
+    button.disabled = true;
+    const { error } = await supabaseClient.rpc('cancel_order', { p_order_id: orderId });
+    button.disabled = false;
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível cancelar o pedido: ${error.message}`, true);
+        return;
+    }
+    showStatus(inventoryStatus, 'Pedido cancelado e peças devolvidas.');
+    await refreshInventoryDashboard();
 }
 
 menuToggle.addEventListener('click', () => {
@@ -322,6 +596,95 @@ filterButtons.forEach(button => {
     });
 });
 
+inventoryLogin.addEventListener('submit', async event => {
+    event.preventDefault();
+    const formData = new FormData(inventoryLogin);
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: formData.get('email'),
+        password: formData.get('password')
+    });
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível entrar: ${error.message}`, true);
+        return;
+    }
+    await showInventoryDashboard(data.user);
+});
+
+productForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const formData = new FormData(productForm);
+    const name = formData.get('name').trim();
+    const price = Number(formData.get('price'));
+    if (!name || !Number.isFinite(price) || price < 0) {
+        showStatus(inventoryStatus, 'Informe o nome e um preço válido.', true);
+        return;
+    }
+
+    const slugBase = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'produto';
+    const product = {
+        id: `${slugBase}-${crypto.randomUUID().slice(0, 8)}`,
+        name,
+        price_cents: Math.round(price * 100),
+        category: formData.get('category').trim() || 'Outros',
+        image_url: formData.get('imageUrl').trim() || null,
+        alt_text: name,
+        tag: formData.get('tag').trim() || null,
+        active: true
+    };
+
+    const { error } = await supabaseClient.from('products').insert(product);
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível cadastrar o produto: ${error.message}`, true);
+        return;
+    }
+
+    productForm.reset();
+    showStatus(inventoryStatus, 'Produto cadastrado. Agora adicione tamanho, cor e quantidade.');
+    await refreshInventoryDashboard();
+    await loadVariants();
+});
+
+variantForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const formData = new FormData(variantForm);
+    const variant = {
+        product_id: formData.get('productId'),
+        size: formData.get('size').trim(),
+        color: formData.get('color').trim(),
+        sku: formData.get('sku').trim() || null,
+        quantity: Number(formData.get('quantity'))
+    };
+    if (!Number.isSafeInteger(variant.quantity) || variant.quantity < 0) {
+        showStatus(inventoryStatus, 'Informe uma quantidade inteira igual ou maior que zero.', true);
+        return;
+    }
+    const { error } = await supabaseClient.from('inventory_variants').insert(variant);
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível cadastrar a variação: ${error.message}`, true);
+        return;
+    }
+    variantForm.reset();
+    document.getElementById('variantProduct').value = products[0].id;
+    showStatus(inventoryStatus, 'Variação cadastrada.');
+    await refreshInventoryDashboard();
+});
+
+document.getElementById('inventoryLogout').addEventListener('click', async () => {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) {
+        showStatus(inventoryStatus, `Não foi possível sair: ${error.message}`, true);
+        return;
+    }
+    inventoryDashboard.hidden = true;
+    inventoryLogin.hidden = false;
+    showStatus(inventoryStatus, 'Sessão encerrada.');
+});
+
+document.getElementById('refreshInventory').addEventListener('click', refreshInventoryDashboard);
+document.getElementById('openInventory').addEventListener('click', openInventory);
+document.getElementById('closeInventory').addEventListener('click', closeInventory);
+inventoryBackdrop.addEventListener('click', closeInventory);
 cartButton.addEventListener('click', openCart);
 document.getElementById('closeCart').addEventListener('click', closeCart);
 document.getElementById('continueShopping').addEventListener('click', closeCart);
@@ -336,9 +699,11 @@ document.addEventListener('keydown', event => {
     }
     if (event.key === 'Escape') {
         closeCart();
+        closeInventory();
     }
-    if (event.key === 'Tab' && !cartDrawer.hidden) {
-        const focusable = [...cartDrawer.querySelectorAll('button:not([disabled]), a[href], input:not([disabled])')]
+    const openDialog = !inventoryPanel.hidden ? inventoryPanel : !cartDrawer.hidden ? cartDrawer : null;
+    if (event.key === 'Tab' && openDialog) {
+        const focusable = [...openDialog.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled])')]
             .filter(element => element.getClientRects().length > 0);
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -352,6 +717,12 @@ document.addEventListener('keydown', event => {
     }
 });
 
+window.addEventListener('focus', loadVariants);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        loadVariants();
+    }
+});
 document.querySelector('.hero-visual img').addEventListener('error', event => {
     event.currentTarget.hidden = true;
 });
@@ -359,3 +730,4 @@ document.querySelector('.hero-visual img').addEventListener('error', event => {
 document.getElementById('currentYear').textContent = String(new Date().getFullYear());
 renderProducts();
 renderCart();
+loadVariants();

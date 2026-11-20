@@ -14,7 +14,9 @@
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261118-footer-logo">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="supabase-config.js" defer></script>
     <script src="script.js" defer></script>
 </head>
 
@@ -23,9 +25,8 @@
 
     <header class="site-header">
         <nav class="nav page-width" aria-label="Navegação principal">
-            <a class="brand" href="#inicio" aria-label="Dona Kah Moda Boutique, início">
-                <span class="brand-mark" aria-hidden="true">DK</span>
-                <span class="brand-name">Dona Kah<span>MODA BOUTIQUE</span></span>
+            <a class="brand brand-header" href="#inicio" aria-label="Dona Kah Moda Boutique, início">
+                <img src="assets/logo-d-simbolo.png" alt="" aria-hidden="true">
             </a>
 
             <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menu"
@@ -107,7 +108,7 @@
                     <span class="result-count" id="resultCount" aria-live="polite"></span>
                 </div>
 
-                <p class="demo-notice"><span aria-hidden="true">ⓘ</span> Catálogo demonstrativo: fotos, nomes e preços são exemplos. Confirme disponibilidade e valores com a loja.</p>
+                <p class="inventory-status" id="catalogStatus" role="status" aria-live="polite"></p>
                 <div class="product-grid" id="productGrid" aria-live="polite"></div>
                 <p class="empty-state" id="emptyState" hidden>Nenhuma peça encontrada. Tente outro nome ou categoria.</p>
             </div>
@@ -125,22 +126,21 @@
                         <span class="quote-mark" aria-hidden="true">“</span>
                         <div class="stars" aria-label="Cinco estrelas">★★★★★</div>
                         <blockquote>“Adorei encontrar peças que combinam comigo. O atendimento foi super atencioso!”</blockquote>
-                        <p class="testimonial-author">Depoimento demonstrativo</p>
+                        <p class="testimonial-author">Cliente Dona Kah</p>
                     </article>
                     <article class="testimonial-card">
                         <span class="quote-mark" aria-hidden="true">“</span>
                         <div class="stars" aria-label="Cinco estrelas">★★★★★</div>
                         <blockquote>“Uma loja acolhedora, com opções lindas para várias ocasiões.”</blockquote>
-                        <p class="testimonial-author">Depoimento demonstrativo</p>
+                        <p class="testimonial-author">Cliente Dona Kah</p>
                     </article>
                     <article class="testimonial-card">
                         <span class="quote-mark" aria-hidden="true">“</span>
                         <div class="stars" aria-label="Cinco estrelas">★★★★★</div>
                         <blockquote>“Foi fácil tirar minhas dúvidas e escolher meu look pelo WhatsApp.”</blockquote>
-                        <p class="testimonial-author">Depoimento demonstrativo</p>
+                        <p class="testimonial-author">Cliente Dona Kah</p>
                     </article>
                 </div>
-                <p class="testimonial-notice">Textos ilustrativos — substitua por avaliações reais das clientes.</p>
             </div>
         </section>
 
@@ -163,14 +163,19 @@
                 <div class="contact-details">
                     <div class="contact-detail">
                         <span class="detail-icon" aria-hidden="true">⌖</span>
-                        <div><strong>Visite a loja</strong><span>Rua das Orquídeas, Portal dos Ipês<br>Santana de Parnaíba — SP</span></div>
+                        <div><strong>Visite a loja</strong><span>Rua das Orquídeas, 633 A<br>Polvilho, Portal dos Ipês — Cajamar/SP</span></div>
                     </div>
                     <a class="contact-detail contact-link"
-                        href="https://www.google.com/maps/search/?api=1&amp;query=Rua+das+Orqu%C3%ADdeas%2C+Portal+dos+Ip%C3%AAs%2C+Santana+de+Parna%C3%ADba%2C+SP"
+                        href="https://www.google.com/maps/search/?api=1&amp;query=-23.4049864379431%2C-46.8562952079653"
                         target="_blank" rel="noopener noreferrer">
                         <span class="detail-icon" aria-hidden="true">↗</span>
                         <div><strong>Como chegar</strong><span>Abrir localização no mapa</span></div>
                     </a>
+                    <iframe
+                        class="contact-map"
+                        src="https://www.google.com/maps/embed?pb=!4v1795117377258!6m8!1m7!1sbKvNw6cS3kTx3hvFS3184w!2m2!1d-23.4049864379431!2d-46.8562952079653!3f196.0925703112623!4f4.568146369425762!5f0.7820865974627469"
+                        width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy"
+                        referrerpolicy="strict-origin-when-cross-origin" title="Localização da loja no Google Maps"></iframe>
                 </div>
             </div>
         </section>
@@ -179,11 +184,12 @@
     <footer class="site-footer">
         <div class="footer-inner page-width">
             <a class="brand" href="#inicio" aria-label="Dona Kah Moda Boutique, início">
-                <span class="brand-mark" aria-hidden="true">DK</span>
+                <img class="footer-brand-symbol" src="assets/logo-d-simbolo.png?v=2" alt="" aria-hidden="true">
                 <span class="brand-name">Dona Kah<span>MODA BOUTIQUE</span></span>
             </a>
-            <span class="footer-location">Portal dos Ipês · Santana de Parnaíba, SP</span>
+            <span class="footer-location">Rua das Orquídeas, 633 A · Polvilho, Cajamar/SP</span>
             <a class="footer-top-link" href="#inicio">Voltar ao início ↑</a>
+            <button class="footer-top-link inventory-open-button" id="openInventory" type="button">Área da loja</button>
         </div>
         <p class="footer-note">© <span id="currentYear"></span> Dona Kah Moda Boutique. Feito com carinho.</p>
     </footer>
@@ -201,11 +207,90 @@
             <button class="text-link" id="continueShopping" type="button">Continuar escolhendo <span aria-hidden="true">→</span></button>
         </div>
         <div class="cart-summary" id="cartSummary" hidden>
-            <div class="cart-total"><span>Total demonstrativo</span><strong id="cartTotal">R$ 0,00</strong></div>
-            <p>Os valores são exemplos. A loja confirma disponibilidade, preço e pagamento pelo WhatsApp.</p>
+            <div class="cart-total"><span>Total</span><strong id="cartTotal">R$ 0,00</strong></div>
+            <p>Ao enviar, reservamos as peças selecionadas até a confirmação da loja.</p>
+            <p class="form-status" id="checkoutStatus" role="status" aria-live="polite"></p>
             <button class="button button-primary checkout-button" id="checkoutButton" type="button">Enviar pedido pelo WhatsApp <span aria-hidden="true">↗</span></button>
         </div>
     </aside>
+
+    <div class="inventory-backdrop" id="inventoryBackdrop" hidden></div>
+    <section class="inventory-panel" id="inventoryPanel" role="dialog" aria-modal="true"
+        aria-labelledby="inventoryTitle" hidden>
+        <div class="inventory-header">
+            <div>
+                <p class="eyebrow"><span></span> Área da loja</p>
+                <h2 id="inventoryTitle">Produtos e pedidos</h2>
+            </div>
+            <button class="icon-button" id="closeInventory" type="button" aria-label="Fechar gestão">×</button>
+        </div>
+        <p class="form-status" id="inventoryStatus" role="status" aria-live="polite"></p>
+        <form class="inventory-login" id="inventoryLogin">
+            <p>Entre com o usuário administrador configurado no Supabase.</p>
+            <label>E-mail
+                <input name="email" type="email" autocomplete="username" required>
+            </label>
+            <label>Senha
+                <input name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <button class="button button-primary" type="submit">Entrar</button>
+        </form>
+        <div class="inventory-dashboard" id="inventoryDashboard" hidden>
+            <div class="inventory-toolbar">
+                <span id="inventoryUser"></span>
+                <button class="text-link" id="inventoryLogout" type="button">Sair</button>
+            </div>
+            <form class="variant-form" id="productForm">
+                <h3>Cadastrar produto</h3>
+                <label>Nome
+                    <input name="name" maxlength="100" placeholder="Ex.: Vestido vermelho" required>
+                </label>
+                <label>Categoria
+                    <input name="category" maxlength="60" placeholder="Ex.: Vestidos" value="Outros" required>
+                </label>
+                <label>Preço
+                    <input name="price" type="number" min="0" step="0.01" placeholder="Ex.: 189.90" required>
+                </label>
+                <label>Foto (opcional)
+                    <input name="imageUrl" type="url" placeholder="https://...">
+                </label>
+                <label>Destaque (opcional)
+                    <input name="tag" maxlength="40" placeholder="Ex.: Novidade">
+                </label>
+                <button class="button button-primary" type="submit">Cadastrar produto</button>
+            </form>
+            <form class="variant-form" id="variantForm">
+                <h3>Adicionar variação</h3>
+                <label>Produto
+                    <select name="productId" id="variantProduct" required></select>
+                </label>
+                <label>Tamanho
+                    <input name="size" maxlength="40" placeholder="Ex.: P, M, 38 ou único" required>
+                </label>
+                <label>Cor
+                    <input name="color" maxlength="60" placeholder="Ex.: Preto" required>
+                </label>
+                <label>SKU (opcional)
+                    <input name="sku" maxlength="80" placeholder="Código interno">
+                </label>
+                <label>Unidades
+                    <input name="quantity" type="number" min="0" step="1" value="0" required>
+                </label>
+                <button class="button button-primary" type="submit">Cadastrar variação</button>
+            </form>
+            <div class="inventory-section">
+                <div class="inventory-section-heading">
+                    <h3>Unidades por variação</h3>
+                    <button class="text-link" id="refreshInventory" type="button">Atualizar</button>
+                </div>
+                <div class="inventory-list" id="inventoryList"></div>
+            </div>
+            <div class="inventory-section">
+                <h3>Pedidos aguardando confirmação</h3>
+                <div class="pending-orders" id="pendingOrders"></div>
+            </div>
+        </div>
+    </section>
 
     <a class="floating-whatsapp"
         href="https://wa.me/5511975197754?text=Ol%C3%A1%2C%20Dona%20Kah!%20Vim%20pelo%20site%20e%20gostaria%20de%20uma%20ajuda."
